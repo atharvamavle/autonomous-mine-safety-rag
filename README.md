@@ -144,4 +144,5 @@ If you must version large weights, use Git LFS.
 ---
 
 ## License
-Add your preferred license here (MIT/Apache-2.0/etc).
+Copyright (c) 2026 Atharva Mavale
+
