@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 7
+names: ['boots', 'helmet', 'no-boots', 'no-helmet', 'no-vest', 'undefined', 'vest']
+
+roboflow:
+  workspace: miningsafetycbi
+  project: cv-cbi-mining-safety
+  version: 3
+  license: MIT
+  url: https://universe.roboflow.com/miningsafetycbi/cv-cbi-mining-safety/dataset/3

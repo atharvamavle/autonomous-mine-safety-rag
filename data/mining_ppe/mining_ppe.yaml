@@ -1,0 +1,15 @@
+path: data/mining_ppe/cv_cbi_mining_safety
+
+train: train/images
+val: test/images      # use test as validation set
+test: test/images
+
+nc: 7
+names:
+  - boots
+  - helmet
+  - no-boots
+  - no-helmet
+  - no-vest
+  - undefined
+  - vest
