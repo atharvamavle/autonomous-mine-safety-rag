@@ -1,9 +1,64 @@
+# -----------------------------
+# Python
+# -----------------------------
 .venv/
+venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# -----------------------------
+# Env / secrets
+# -----------------------------
 .env
+**/.env
+*.env
+*.env.*
+.env.*
+*.key
+*.pem
+
+# -----------------------------
+# Logs
+# -----------------------------
 *.log
+
+# -----------------------------
+# OS / editor junk
+# -----------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# -----------------------------
+# Node / Vite (frontend)
+# -----------------------------
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+*.tsbuildinfo
+
+# -----------------------------
+# Data / vector stores (big)
+# -----------------------------
 data/raw/
 data/processed/
 data/vector_store/
+*.zip
+
+# -----------------------------
+# Ultralytics / YOLO artifacts
+# -----------------------------
+runs/
+*.pt
+*.onnx
+*.engine
+*.torchscript
+*.tflite
