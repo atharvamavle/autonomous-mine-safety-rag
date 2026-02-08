@@ -1,48 +1,60 @@
-# Autonomous Mine Safety RAG (PPE Vision + WHS RAG)
+# Autonomous Mine Safety RAG Copilot (Maintenance + Safety + PPE Vision)
 
-A practical prototype to **reduce PPE non-compliance risk** on mine / industrial sites by combining:
-- **Computer vision** (detect PPE and PPE non-compliance in site photos), and
-- **Retrieval-Augmented Generation (RAG)** (return a short, grounded WHS controls checklist with citations from your safety documents).
+A **RAG-powered copilot for mining maintenance and safety knowledge**.
 
-This solves a common operational problem: site teams need fast, consistent PPE compliance checks *and* clear, policy-aligned controls to act on what the camera sees.
+It lets site teams ask natural-language questions and instantly get **precise, source-linked answers** from large collections of manuals, reports, standards, and incident documents—without hunting through PDFs or SharePoint.
+
+This repo also includes an optional **PPE vision module** (YOLO) that can analyze a site photo, summarize PPE compliance, and generate a grounded WHS control checklist using the same RAG knowledge base.
 
 ---
 
 ## What problem are we solving?
-Mining and industrial sites often rely on manual supervision to confirm PPE compliance (helmets, hi-vis vests, safety boots). This is time-consuming and inconsistent across shifts.
+Mining and heavy-industry sites have critical information spread across OEM manuals, work instructions, inspection logs, incident bulletins, standards, and internal procedures.
 
-This project aims to:
-- Automatically **detect PPE presence / absence** from images.
-- Produce a **risk-oriented hazard summary** (e.g., missing helmet → elevated risk).
-- Generate a **WHS controls checklist** that is grounded in your organisation’s WHS documents (via RAG) instead of generic advice.
-
----
-
-## How it works (high level)
-1. **Vision (YOLO PPE model)** detects PPE classes such as `helmet`, `vest`, `boots` and non-compliance classes like `no-helmet`, `no-vest`, `no-boots`.
-2. *(Optional but recommended)* **Person-gated PPE**:
-   - A general-purpose YOLO model detects `person` first.
-   - PPE detection runs only on person crops to reduce false positives on non-site images.
-3. A short **hazard summary** is constructed from detections.
-4. The hazard summary becomes a **RAG query**.
-5. RAG retrieves the most relevant WHS chunks and generates a short checklist with citations.
+This creates several pain points:
+- **Too many documents, no easy answers**: Important details are buried in technical PDFs and long reports, so engineers and maintainers lose time searching during breakdowns or planning.
+- **Knowledge trapped in silos**: Expertise sits in multiple systems (CMMS, PDFs, emails, internal standards), and people rely on “who you know” instead of “what the documents say,” which is risky when experienced staff leave.
+- **Slow, inconsistent decisions**: Fault troubleshooting and safety questions often trigger repeated searching and re-analysis rather than clear, consistent guidance based on official procedures and past similar cases.
+- **Traditional search is limited**: Keyword search fails when wording differs (e.g., “pump won’t prime” vs. “loss of suction”). RAG supports plain-English questions while still retrieving the right passages.
 
 ---
 
-## Demo / outputs
-The API returns:
-- `hazard_summary`: counts by class + `risk_level`
-- `detections`: list of `{label, conf, box_xyxy}`
-- `answer`: a short WHS controls checklist (grounded + cited)
-- `references`: the retrieved sources (file path + page)
+## What this copilot does
+This system tackles those problems by:
+1. **Indexing** maintenance + safety knowledge (manuals, standards, incident reports, site procedures).
+2. **Retrieving** the most relevant text chunks when a user asks a question.
+3. **Generating** a short answer that **cites the exact sources** used, so users can verify and trust it.
+
+### Example
+A maintainer asks:
+> “What should I check first when this conveyor keeps tripping on overload?”
+
+The copilot retrieves:
+- similar past faults / relevant incident bulletins,
+- OEM recommended checks,
+- site standards and procedures,
+
+…and returns a clear step-by-step response **with links/page references to the original documents**.
+
+---
+
+## Components
+### 1) RAG backend (core)
+- PDF parsing → chunking → embeddings → vector store
+- Retrieval (`top_k`) + answer generation with citations
+
+### 2) PPE Vision (optional)
+- Custom YOLO PPE detection (`helmet`, `vest`, `boots` + non-compliance classes)
+- Optional **person-gated PPE** to reduce false positives on non-site images
+- Hazard summary → RAG query → grounded WHS controls checklist
 
 ---
 
 ## Repository structure
-- `app/` — FastAPI backend (vision + RAG APIs)
+- `app/` — FastAPI backend (RAG + vision endpoints)
 - `frontend/` — React/Vite UI
-- `scripts/` — ingestion scripts (PDF parsing, chunking, building vector store, retrieval tests)
-- `data/` — local datasets + WHS docs (ignored by default)
+- `scripts/` — ingestion scripts (PDF parsing, chunking, vector store build, retrieval tests)
+- `data/` — local datasets + docs (ignored by default)
 - `runs/` — YOLO training outputs (ignored by default)
 
 ---
@@ -60,39 +72,26 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2) Put your WHS PDFs in place
-Example folders:
+### 2) Add documents (local only)
+Put your WHS / maintenance PDFs under (example):
 - `data/raw/manuals/`
 - `data/raw/incidents/`
 
-(These are ignored by git; keep them local.)
+> These are ignored by git.
 
-### 3) Build the vector store (RAG ingestion)
+### 3) Build the vector store
 ```bash
 python scripts/parse_pdfs.py
 python scripts/chunk_text.py
 python scripts/build_vector_store.py
 ```
 
-### 4) Configure model weights
-In `app/services/vision_hazard.py`, set the path to your trained PPE weights:
-```python
-_yolo_model = YOLO("runs/mining_ppe/mining_ppe_yolov8n4/weights/best.pt")
-```
-
-Optional (recommended): enable person-gating with:
-```python
-_person_model = YOLO("yolov8n.pt")
-```
-
-> `yolov8n.pt` is a COCO-pretrained model; Ultralytics will download it automatically on first run.
-
-### 5) Start the API
+### 4) Start the API
 ```bash
 uvicorn app.main:app --reload
 ```
 
-API should be at:
+Open:
 - http://127.0.0.1:8000
 
 ---
@@ -108,27 +107,37 @@ Open the URL printed by Vite (usually http://localhost:5173).
 
 ---
 
-## How to work with this project (developer workflow)
+## PPE Vision setup (optional)
+In `app/services/vision_hazard.py`, point to your trained weights:
+```python
+_yolo_model = YOLO("runs/mining_ppe/mining_ppe_yolov8n4/weights/best.pt")
+```
 
-### Typical workflow
-1. Add new WHS PDFs → re-run ingestion scripts.
-2. Test image inference with a few known compliant/non-compliant examples.
-3. Tune:
-   - `conf` threshold (sensitivity vs false positives)
-   - `imgsz` (higher can help helmets because they’re small objects)
-4. When the model misses cases in your real environment, add those examples to the dataset and retrain.
+To enable person-gated PPE detection:
+```python
+_person_model = YOLO("yolov8n.pt")
+```
 
-### Common issues
-- **False positives on non-site images (e.g., city crowds)**: enable person-gating and ignore tiny persons.
-- **Helmet not detected**: try higher inference `imgsz` (e.g., 960) and/or train with more helmet examples similar to your deployment camera view.
+Tuning tips:
+- Increase `imgsz` in inference if helmets are missed (small objects).
+- Lower `conf` for higher recall, then add guardrails to control false positives.
+
+---
+
+## Working with the project
+Typical developer loop:
+1. Add new PDFs → rebuild the vector store.
+2. Test queries (fault + safety questions) and validate citations.
+3. Expand documents / improve chunking if retrieval misses key procedures.
+4. For PPE: test on your real camera views, then add hard cases to the dataset and retrain.
 
 ---
 
 ## Git / large files (important)
 GitHub blocks files > 100 MB. Do **not** commit:
-- datasets (`data/`), especially zip exports
-- YOLO runs (`runs/`)
-- model weights (`*.pt`)
+- `data/` (datasets, PDF corpora, zip exports)
+- `runs/` (YOLO training outputs)
+- `*.pt` (model weights)
 
 If you must version large weights, use Git LFS.
 
